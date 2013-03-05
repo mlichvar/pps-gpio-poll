@@ -65,7 +65,7 @@ module_param(debug, int, S_IRUSR | S_IWUSR);
 
 
 static struct pps_device *pps;
-static struct timespec last_ts;
+static ktime_t last_ts;
 static struct hrtimer timer;
 #ifdef GPIO_ECHO
 static struct hrtimer echo_timer;
@@ -157,8 +157,7 @@ static enum hrtimer_restart gpio_poll()
 			 * before the next event */
 			ktime = ktime_set(0, (long)1e9L - (poll + poll/2)*1000);
 			timer.function = &gpio_wait;
-			last_ts.tv_sec = 0;
-			last_ts.tv_nsec = 0;
+			last_ts.tv64 = 0;
 		}
 		gpio_value = value;
 	}
@@ -172,6 +171,7 @@ static enum hrtimer_restart gpio_wait()
 {
 	ktime_t ktime;
 	struct pps_event_time ts;
+	ktime_t monotonic;
 	int i, have_ts = 0;
 	unsigned long flags;
 
@@ -185,22 +185,23 @@ static enum hrtimer_restart gpio_wait()
 		gpio_set_value(gpio_echo, !echo_invert);
 	#endif
 	pps_get_ts(&ts);
+	monotonic = ktime_get();
 	local_irq_restore(flags);
 	
 	if (likely(i > 0 && i < iter)) {
 		have_ts = 1;
-		if (unlikely(last_ts.tv_sec == 0 && last_ts.tv_nsec == 0)) {
+		if (unlikely(last_ts.tv64 == 0)) {
 			/* this is the first event, start busy waiting
 			 * poll/2 microseconds before the next */
 			ktime = ktime_set(0, (long)1e9L - (poll/2)*1000);
 		} else {
 			/* we know the time between events, start busy waiting
 			 * "wait" microseconds before the next event */
-			ktime = timespec_to_ktime(ts.ts_real);
-			ktime = ktime_sub(ktime, timespec_to_ktime(last_ts));
+			ktime = monotonic;
+			ktime = ktime_sub(ktime, last_ts);
 			ktime = ktime_sub_ns(ktime, wait*1000);
 		}
-		last_ts = ts.ts_real;
+		last_ts = monotonic;
 	} else {
 		/* we missed the event inside the loop, return to polling mode */
 		pr_info("missed PPS pulse\n");
