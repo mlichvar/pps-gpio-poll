@@ -72,7 +72,7 @@ static struct hrtimer echo_timer;
 #endif
 static int gpio_value;
 
-static int pps_gpio_register()
+static int pps_gpio_register(void)
 {
 	int ret;
 	int pps_default_params;
@@ -133,7 +133,7 @@ error1:
 	return -EINVAL;
 }
 
-static int pps_gpio_remove()
+static int pps_gpio_remove(void)
 {
 	gpio_free(gpio);
 	#ifdef GPIO_ECHO
@@ -145,8 +145,8 @@ static int pps_gpio_remove()
 	return 0;
 }
 
-static enum hrtimer_restart gpio_wait();
-static enum hrtimer_restart gpio_poll()
+static enum hrtimer_restart gpio_wait(struct hrtimer *t);
+static enum hrtimer_restart gpio_poll(struct hrtimer *t)
 {
 	ktime_t ktime = ktime_set(0, poll*1000);
 
@@ -167,7 +167,7 @@ static enum hrtimer_restart gpio_poll()
 	return HRTIMER_NORESTART;
 }
 
-static enum hrtimer_restart gpio_wait()
+static enum hrtimer_restart gpio_wait(struct hrtimer *t)
 {
 	ktime_t ktime;
 	struct pps_event_time ts;
