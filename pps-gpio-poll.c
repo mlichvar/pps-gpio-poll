@@ -44,6 +44,8 @@ static int capture = 1;
 static int poll = 100;
 static int wait = 15;
 static int iter = 2000;
+static int rate = 1;
+static int interval;
 static int debug;
 
 module_param(gpio, int, S_IRUSR);
@@ -60,6 +62,8 @@ MODULE_PARM_DESC(poll, "polling interval (microseconds)");
 module_param(wait, int, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(wait, "time to wait for PPS event (microseconds)");
 module_param(iter, int, S_IRUSR | S_IWUSR);
+MODULE_PARM_DESC(rate, "PPS rate (Hz)");
+module_param(rate, int, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(iter, "maximum number of GPIO reads in the wait loop");
 module_param(debug, int, S_IRUSR | S_IWUSR);
 
@@ -155,7 +159,7 @@ static enum hrtimer_restart gpio_poll(struct hrtimer *t)
 		if (value == capture) {
 			/* got a PPS event, start busy waiting 1.5*poll microseconds
 			 * before the next event */
-			ktime = ktime_set(0, (long)1e9L - (poll + poll/2)*1000);
+			ktime = ktime_set(0, (interval - poll - poll/2)*1000);
 			timer.function = &gpio_wait;
 			last_ts.tv64 = 0;
 		}
@@ -193,7 +197,7 @@ static enum hrtimer_restart gpio_wait(struct hrtimer *t)
 		if (unlikely(last_ts.tv64 == 0)) {
 			/* this is the first event, start busy waiting
 			 * poll/2 microseconds before the next */
-			ktime = ktime_set(0, (long)1e9L - (poll/2)*1000);
+			ktime = ktime_set(0, (interval - poll/2)*1000);
 		} else {
 			/* we know the time between events, start busy waiting
 			 * "wait" microseconds before the next event */
@@ -242,6 +246,7 @@ static int __init pps_gpio_init(void)
 		return ret;
 
 	gpio_value = gpio_get_value(gpio);
+	interval = 1000000 / rate;
 
 	hrtimer_init(&timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	timer.function = &gpio_poll;
