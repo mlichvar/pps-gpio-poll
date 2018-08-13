@@ -161,7 +161,7 @@ static enum hrtimer_restart gpio_poll(struct hrtimer *t)
 			 * before the next event */
 			ktime = ktime_set(0, (interval - poll - poll/2)*1000);
 			timer.function = &gpio_wait;
-			last_ts.tv64 = 0;
+			last_ts = ktime_set(0, 0);
 		}
 		gpio_value = value;
 	}
@@ -194,7 +194,7 @@ static enum hrtimer_restart gpio_wait(struct hrtimer *t)
 	
 	if (likely(i > 0 && i < iter)) {
 		have_ts = 1;
-		if (unlikely(last_ts.tv64 == 0)) {
+		if (unlikely(ktime_to_ns(last_ts) == 0)) {
 			/* this is the first event, start busy waiting
 			 * poll/2 microseconds before the next */
 			ktime = ktime_set(0, (interval - poll/2)*1000);
