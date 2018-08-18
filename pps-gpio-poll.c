@@ -78,8 +78,8 @@ static int gpio_value;
 
 static int pps_gpio_register(void)
 {
-	int ret;
-	int pps_default_params;
+	int i, ret, pps_default_params;
+	ktime_t ts1, ts2;
 	struct pps_source_info info = {
 		.name	= KBUILD_MODNAME,
 		.path	= "",
@@ -124,7 +124,16 @@ static int pps_gpio_register(void)
 		goto error;
 	}
 
-	pr_info("Registered GPIO %d as PPS source\n", gpio);
+	ts1 = ktime_get();
+	gpio_get_value(gpio);
+
+	ts1 = ktime_get();
+	for (i = 0; i < 100; i++)
+		gpio_get_value(gpio);
+	ts2 = ktime_get();
+
+	pr_info("Registered GPIO %d as PPS source (precision %d ns)\n",
+		gpio, (int)(ktime_to_ns(ts2) - ktime_to_ns(ts1)) / 100);
 	return 0;
 
 error:
