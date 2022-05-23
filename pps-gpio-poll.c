@@ -101,6 +101,12 @@ static int pps_gpio_register(void)
 		pr_warning("failed to set PPS GPIO direction\n");
 		goto error1;
 	}
+	/* don't bother with GPIOs on slow busses like SPI, I2C, LPC */
+	ret = gpio_cansleep(gpio);
+	if (ret) {
+		pr_warning("GPIO %u not suitable for polling\n", gpio);
+		goto error1;
+	}
 	#ifdef GPIO_ECHO
 	if (gpio_echo >= 0) {
 		ret = gpio_request(gpio_echo, "PPS echo");
